@@ -227,16 +227,13 @@ function showDone(date, heure, type, lieu, note) {
 
   var ics = buildICS(date, heure, lieu, note);
   var a = document.getElementById('btn-ics');
-  var blob = new Blob([ics], { type: 'text/calendar;charset=utf-8' });
-  var url = URL.createObjectURL(blob);
+  a.href = URL.createObjectURL(new Blob([ics], { type: 'text/calendar;charset=utf-8' }));
+  a.download = 'rdv-secret-geoffroy.ics';
   var isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
   if (isIOS) {
-    // iOS : ouvrir le .ics directement -> Safari affiche l'événement avec « Ajouter tout »
-    a.href = url; a.removeAttribute('download'); a.target = '_blank';
-    document.getElementById('ics-hint').textContent =
-      "Sur iPhone : touchez le bouton, puis « Ajouter tout » en haut de l'écran. Si un fichier se télécharge, ouvrez-le pour l'ajouter.";
-  } else {
-    a.href = url; a.download = 'rendez-vous.ics';
+    document.getElementById('ics-hint').innerHTML =
+      "Sur iPhone, Safari télécharge le fichier. Ensuite : touchez l'icône <strong>Téléchargements</strong> (flèche en haut à droite), " +
+      'ouvrez <strong>rdv-secret-geoffroy.ics</strong>, puis <strong>« Ajouter tout »</strong>.';
   }
   document.getElementById('btn-gcal').href = gcalLink(date, heure, lieu, note);
 }
