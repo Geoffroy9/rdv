@@ -66,7 +66,7 @@ const CONFIG = {
     "En cas d'absence de réponse, 200 messages de rappel vous seront envoyés au bout de 24 heures, 2 000 au bout de 48 heures…"
   ],
   dureeHeures: 3,                      // durée de l'événement dans le calendrier
-  titreEvenement: "Rendez-vous"        // titre de l'événement calendrier
+  titreEvenement: "rdv secret Geoffroy" // titre de l'événement calendrier
 };
 </script>
 
@@ -118,7 +118,7 @@ const CONFIG = {
   <div class="summary" id="done-summary"></div>
   <a class="btn" id="btn-ics" href="#"><button type="button">Ajouter à mon calendrier</button></a>
   <a class="btn" id="btn-gcal" href="#" target="_blank" rel="noopener"><button type="button" class="secondary">Ajouter à Google Agenda</button></a>
-  <p class="muted" style="margin-top:14px">Sur iPhone, « Ajouter à mon calendrier » ouvre directement l'app Calendrier.</p>
+  <p class="muted" style="margin-top:14px" id="ics-hint">Le fichier téléchargé s'ouvre avec votre application Calendrier.</p>
 </div>
 
 <script>
@@ -227,8 +227,17 @@ function showDone(date, heure, type, lieu, note) {
 
   var ics = buildICS(date, heure, lieu, note);
   var a = document.getElementById('btn-ics');
-  a.href = 'data:text/calendar;charset=utf-8,' + encodeURIComponent(ics);
-  a.download = 'rendez-vous.ics';
+  var blob = new Blob([ics], { type: 'text/calendar;charset=utf-8' });
+  var url = URL.createObjectURL(blob);
+  var isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  if (isIOS) {
+    // iOS : ouvrir le .ics directement -> Safari affiche l'événement avec « Ajouter tout »
+    a.href = url; a.removeAttribute('download'); a.target = '_blank';
+    document.getElementById('ics-hint').textContent =
+      "Sur iPhone : touchez le bouton, puis « Ajouter tout » en haut de l'écran. Si un fichier se télécharge, ouvrez-le pour l'ajouter.";
+  } else {
+    a.href = url; a.download = 'rendez-vous.ics';
+  }
   document.getElementById('btn-gcal').href = gcalLink(date, heure, lieu, note);
 }
 
@@ -249,7 +258,7 @@ function buildICS(date, heure, lieu, note) {
     'DTSTAMP:' + toUTC(date, heure, 0),
     'DTSTART:' + toUTC(date, heure, 0),
     'DTEND:' + toUTC(date, heure, CONFIG.dureeHeures),
-    'SUMMARY:' + icsEsc(CONFIG.titreEvenement + ' ' + CONFIG.lui + ' & ' + CONFIG.elle),
+    'SUMMARY:' + icsEsc(CONFIG.titreEvenement),
     'LOCATION:' + icsEsc(lieu),
     'DESCRIPTION:' + icsEsc(note || ''),
     'BEGIN:VALARM', 'TRIGGER:-PT2H', 'ACTION:DISPLAY', 'DESCRIPTION:Rappel', 'END:VALARM',
@@ -258,7 +267,7 @@ function buildICS(date, heure, lieu, note) {
 }
 function gcalLink(date, heure, lieu, note) {
   return 'https://calendar.google.com/calendar/render?action=TEMPLATE'
-    + '&text=' + encodeURIComponent(CONFIG.titreEvenement + ' ' + CONFIG.lui + ' & ' + CONFIG.elle)
+    + '&text=' + encodeURIComponent(CONFIG.titreEvenement)
     + '&dates=' + toUTC(date, heure, 0) + '/' + toUTC(date, heure, CONFIG.dureeHeures)
     + '&location=' + encodeURIComponent(lieu)
     + '&details=' + encodeURIComponent(note || '');
