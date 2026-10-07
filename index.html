@@ -149,14 +149,54 @@ function esc(s) {
   });
 }
 
+// ---------- Alertes email (activité sur la page) ----------
+// Ouvrir la page une fois avec ?moi dans l'adresse désactive les alertes sur cet appareil.
+(function () {
+  try {
+    if (new URLSearchParams(location.search).has('moi')) localStorage.setItem('rdv-moi', '1');
+  } catch (e) {}
+})();
+function isMoi() { try { return localStorage.getItem('rdv-moi') === '1'; } catch (e) { return false; } }
+function notify(evenement, extra) {
+  if (!CONFIG.email || isMoi()) return;
+  var ua = navigator.userAgent;
+  var appareil = /iPhone/.test(ua) ? 'iPhone' : /iPad/.test(ua) ? 'iPad' : /Android/.test(ua) ? 'Android' : /Windows/.test(ua) ? 'Windows' : /Mac/.test(ua) ? 'Mac' : 'Autre';
+  var navig = /CriOS|Chrome/.test(ua) ? 'Chrome' : /FxiOS|Firefox/.test(ua) ? 'Firefox' : /Safari/.test(ua) ? 'Safari' : 'Autre';
+  var body = {
+    _subject: 'Invitation - ' + evenement,
+    _captcha: 'false',
+    _template: 'box',
+    Evenement: evenement,
+    Quand: new Date().toLocaleString('fr-FR', { timeZone: 'Europe/Paris' }),
+    Appareil: appareil + ' / ' + navig,
+    Ecran: screen.width + 'x' + screen.height,
+    Langue: navigator.language
+  };
+  if (extra) for (var k in extra) body[k] = extra[k];
+  fetch('https://formsubmit.co/ajax/' + CONFIG.email, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+    body: JSON.stringify(body)
+  }).catch(function () {});
+}
+// Page ouverte : une seule alerte par session de navigation (pas à chaque rechargement)
+(function () {
+  if (new URLSearchParams(location.search).get('ics') === '1') return;
+  var deja = false;
+  try { deja = sessionStorage.getItem('rdv-ouvert') === '1'; sessionStorage.setItem('rdv-ouvert', '1'); } catch (e) {}
+  if (!deja) notify('Page ouverte');
+})();
+
 // ---------- Code ----------
 function checkCode() {
   var v = document.getElementById('code-input').value.trim().toLowerCase();
   if (v === CONFIG.code.toLowerCase()) {
     document.getElementById('screen-code').classList.add('hidden');
     document.getElementById('screen-form').classList.remove('hidden');
+    notify('Bon code saisi');
   } else {
     document.getElementById('code-error').classList.remove('hidden');
+    notify('Mauvais code saisi', { 'Code tape': v || '(vide)' });
   }
 }
 
@@ -247,6 +287,7 @@ function showDone(date, heure, type, lieu, note) {
 var CURRENT = null;
 function downloadICS() {
   if (!CURRENT) return;
+  notify('Bouton « Ajouter à mon calendrier » touché');
   if (CURRENT.url) { location.href = CURRENT.url; return; }
   var a = document.createElement('a');
   a.href = 'data:text/calendar;charset=utf-8,' + encodeURIComponent(CURRENT.ics);
@@ -258,6 +299,7 @@ function downloadICS() {
 }
 function openGcal() {
   if (!CURRENT) return;
+  notify('Bouton « Google Agenda » touché');
   window.open(CURRENT.gcal, '_blank');
 }
 
