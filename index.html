@@ -227,13 +227,17 @@ function showDone(date, heure, type, lieu, note) {
 
   var ics = buildICS(date, heure, lieu, note);
   var a = document.getElementById('btn-ics');
-  a.href = URL.createObjectURL(new Blob([ics], { type: 'text/calendar;charset=utf-8' }));
+  a.href = 'data:text/calendar;charset=utf-8,' + encodeURIComponent(ics);
   a.download = 'rdv-secret-geoffroy.ics';
-  var isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
-  if (isIOS) {
-    document.getElementById('ics-hint').innerHTML =
-      "Sur iPhone, Safari télécharge le fichier. Ensuite : touchez l'icône <strong>Téléchargements</strong> (flèche en haut à droite), " +
-      'ouvrez <strong>rdv-secret-geoffroy.ics</strong>, puis <strong>« Ajouter tout »</strong>.';
+  var ua = navigator.userAgent;
+  var isIOS = /iPad|iPhone|iPod/.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  var hint = document.getElementById('ics-hint');
+  if (isIOS && /CriOS/.test(ua)) {
+    hint.innerHTML = "Sur Chrome iPhone : le fichier se télécharge. Touchez <strong>« Ouvrir dans… »</strong> en bas de l'écran " +
+      "(ou menu <strong>⋯</strong> puis <strong>Téléchargements</strong>), choisissez <strong>Calendrier</strong>, puis <strong>« Ajouter tout »</strong>.";
+  } else if (isIOS) {
+    hint.innerHTML = "Sur Safari iPhone : le fichier se télécharge. Touchez l'icône <strong>Téléchargements</strong> (flèche en haut à droite), " +
+      "ouvrez <strong>rdv-secret-geoffroy.ics</strong>, puis <strong>« Ajouter tout »</strong>.";
   }
   document.getElementById('btn-gcal').href = gcalLink(date, heure, lieu, note);
 }
