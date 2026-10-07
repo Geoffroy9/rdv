@@ -65,6 +65,7 @@ const CONFIG = {
     "Merci de bien vouloir sélectionner une date et une adresse à votre convenance.",
     "En cas d'absence de réponse, 200 messages de rappel vous seront envoyés au bout de 24 heures, 2 000 au bout de 48 heures…"
   ],
+  icsEndpoint: "",                     // URL du worker Cloudflare (ex : "https://rdv-ics.xxx.workers.dev") ; vide = téléchargement
   dureeHeures: 3,                      // durée de l'événement dans le calendrier
   titreEvenement: "rdv secret Geoffroy" // titre de l'événement calendrier
 };
@@ -177,7 +178,8 @@ function submitForm() {
   btn.disabled = true; btn.textContent = 'Envoi…';
 
   var fd = formatDate(date, heure);
-  var link = location.origin + location.pathname + '?ics=1&d=' + date + '&t=' + heure
+  var link = CONFIG.icsEndpoint ? icsUrl(date, heure, lieu, note)
+    : location.origin + location.pathname + '?ics=1&d=' + date + '&t=' + heure
     + '&ty=' + encodeURIComponent(type) + '&l=' + encodeURIComponent(lieu) + '&n=' + encodeURIComponent(note);
 
   var body = {
@@ -225,11 +227,15 @@ function showDone(date, heure, type, lieu, note) {
     (type ? esc(type) + ' - ' : '') + esc(lieu) +
     (note ? '<br><span class="muted">' + esc(note) + '</span>' : '');
 
-  CURRENT = { ics: buildICS(date, heure, lieu, note), gcal: gcalLink(date, heure, lieu, note) };
+  CURRENT = { ics: buildICS(date, heure, lieu, note), gcal: gcalLink(date, heure, lieu, note),
+              url: CONFIG.icsEndpoint ? icsUrl(date, heure, lieu, note) : '' };
   var ua = navigator.userAgent;
   var isIOS = /iPad|iPhone|iPod/.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
   var hint = document.getElementById('ics-hint');
-  if (isIOS && /CriOS/.test(ua)) {
+  if (CURRENT.url) {
+    hint.textContent = isIOS ? "L'événement s'ouvre dans Calendrier : touchez « Ajouter tout »."
+                             : "Le fichier s'ouvre avec votre application Calendrier.";
+  } else if (isIOS && /CriOS/.test(ua)) {
     hint.innerHTML = "Sur Chrome iPhone : le fichier se télécharge. Touchez <strong>« Ouvrir dans… »</strong> en bas de l'écran " +
       "(ou menu <strong>⋯</strong> puis <strong>Téléchargements</strong>), choisissez <strong>Calendrier</strong>, puis <strong>« Ajouter tout »</strong>.";
   } else if (isIOS) {
@@ -241,6 +247,7 @@ function showDone(date, heure, type, lieu, note) {
 var CURRENT = null;
 function downloadICS() {
   if (!CURRENT) return;
+  if (CURRENT.url) { location.href = CURRENT.url; return; }
   var a = document.createElement('a');
   a.href = 'data:text/calendar;charset=utf-8,' + encodeURIComponent(CURRENT.ics);
   a.download = 'rdv-secret-geoffroy.ics';
@@ -255,6 +262,11 @@ function openGcal() {
 }
 
 // ---------- Calendrier ----------
+function icsUrl(date, heure, lieu, note) {
+  return CONFIG.icsEndpoint.replace(/[/]$/, '') + '/?s=' + encodeURIComponent(CONFIG.titreEvenement)
+    + '&d=' + date + '&t=' + heure + '&h=' + CONFIG.dureeHeures
+    + '&l=' + encodeURIComponent(lieu) + '&n=' + encodeURIComponent(note || '');
+}
 function toUTC(date, heure, addHours) {
   var d = new Date(date + 'T' + heure);
   d.setHours(d.getHours() + (addHours || 0));
