@@ -116,8 +116,8 @@ const CONFIG = {
   <h1>Confirmé</h1>
   <p class="ok" id="done-status">Votre réponse a été envoyée.</p>
   <div class="summary" id="done-summary"></div>
-  <a class="btn" id="btn-ics" href="#"><button type="button">Ajouter à mon calendrier</button></a>
-  <a class="btn" id="btn-gcal" href="#" target="_blank" rel="noopener"><button type="button" class="secondary">Ajouter à Google Agenda</button></a>
+  <button type="button" id="btn-ics" onclick="downloadICS()">Ajouter à mon calendrier</button>
+  <button type="button" id="btn-gcal" class="secondary" onclick="openGcal()">Ajouter à Google Agenda</button>
   <p class="muted" style="margin-top:14px" id="ics-hint">Le fichier téléchargé s'ouvre avec votre application Calendrier.</p>
 </div>
 
@@ -225,10 +225,7 @@ function showDone(date, heure, type, lieu, note) {
     (type ? esc(type) + ' - ' : '') + esc(lieu) +
     (note ? '<br><span class="muted">' + esc(note) + '</span>' : '');
 
-  var ics = buildICS(date, heure, lieu, note);
-  var a = document.getElementById('btn-ics');
-  a.href = 'data:text/calendar;charset=utf-8,' + encodeURIComponent(ics);
-  a.download = 'rdv-secret-geoffroy.ics';
+  CURRENT = { ics: buildICS(date, heure, lieu, note), gcal: gcalLink(date, heure, lieu, note) };
   var ua = navigator.userAgent;
   var isIOS = /iPad|iPhone|iPod/.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
   var hint = document.getElementById('ics-hint');
@@ -239,7 +236,22 @@ function showDone(date, heure, type, lieu, note) {
     hint.innerHTML = "Sur Safari iPhone : le fichier se télécharge. Touchez l'icône <strong>Téléchargements</strong> (flèche en haut à droite), " +
       "ouvrez <strong>rdv-secret-geoffroy.ics</strong>, puis <strong>« Ajouter tout »</strong>.";
   }
-  document.getElementById('btn-gcal').href = gcalLink(date, heure, lieu, note);
+}
+
+var CURRENT = null;
+function downloadICS() {
+  if (!CURRENT) return;
+  var a = document.createElement('a');
+  a.href = 'data:text/calendar;charset=utf-8,' + encodeURIComponent(CURRENT.ics);
+  a.download = 'rdv-secret-geoffroy.ics';
+  a.style.display = 'none';
+  document.body.appendChild(a);
+  a.click();
+  setTimeout(function () { document.body.removeChild(a); }, 1000);
+}
+function openGcal() {
+  if (!CURRENT) return;
+  window.open(CURRENT.gcal, '_blank');
 }
 
 // ---------- Calendrier ----------
