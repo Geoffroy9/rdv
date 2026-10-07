@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Invitation</title>
+<style>
+  :root {
+    --bg: #f5f5f4; --card: #ffffff; --text: #1c1917; --muted: #78716c;
+    --line: #e7e5e4; --accent: #1c1917; --accent-text: #ffffff; --ok: #166534;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 20px;
+  }
+  .card {
+    background: var(--card); border: 1px solid var(--line); border-radius: 14px;
+    padding: 28px 24px; width: 100%; max-width: 440px;
+  }
+  h1 { font-size: 20px; font-weight: 600; margin: 0 0 14px; }
+  p { line-height: 1.55; margin: 0 0 12px; font-size: 15px; }
+  .muted { color: var(--muted); font-size: 13px; }
+  label { display: block; font-size: 13px; color: var(--muted); margin: 14px 0 6px; }
+  input, select, textarea {
+    width: 100%; font: inherit; font-size: 16px; padding: 11px 12px;
+    border: 1px solid var(--line); border-radius: 9px; background: #fff; color: var(--text);
+  }
+  textarea { resize: vertical; min-height: 70px; }
+  input:focus, select:focus, textarea:focus { outline: 2px solid #a8a29e; border-color: transparent; }
+  button {
+    width: 100%; margin-top: 20px; padding: 13px; font: inherit; font-size: 16px; font-weight: 600;
+    border: 0; border-radius: 9px; background: var(--accent); color: var(--accent-text); cursor: pointer;
+  }
+  button.secondary { background: #fff; color: var(--text); border: 1px solid var(--line); margin-top: 10px; }
+  button:disabled { opacity: .5; cursor: default; }
+  .hidden { display: none !important; }
+  .error { color: #b91c1c; font-size: 13px; margin-top: 8px; }
+  .summary { border: 1px solid var(--line); border-radius: 9px; padding: 14px; margin: 14px 0; line-height: 1.6; }
+  .ok { color: var(--ok); font-weight: 600; }
+  a.btn { display: block; text-align: center; text-decoration: none; }
+</style>
+</head>
+<body>
+
+<!-- ============ CONFIG ============ -->
+<script>
+const CONFIG = {
+  lui: "Joshua",
+  elle: "Azzette",
+  email: "rivot.geoffroy@gmail.com",   // ton email : reçoit la décision
+  code: "01052026",                    // code d'accès
+  titre: "Invitation",
+  message: [
+    "Votre connard préféré vous invite à partager un moment d'échange et de partage, à la date et au lieu de votre convenance.",
+    "Le lieu peut être de type restauration, hébergement ou ludique.",
+    "Merci de bien vouloir sélectionner une date et une adresse à votre convenance.",
+    "En cas d'absence de réponse, 200 messages de rappel vous seront envoyés au bout de 24 heures, 2 000 au bout de 48 heures…"
+  ],
+  dureeHeures: 3,                      // durée de l'événement dans le calendrier
+  titreEvenement: "Rendez-vous"        // titre de l'événement calendrier
+};
+</script>
+
+<!-- ============ ÉCRAN CODE ============ -->
+<div class="card" id="screen-code">
+  <h1>Accès</h1>
+  <p class="muted">Entrez le code pour continuer.</p>
+  <input type="text" id="code-input" inputmode="numeric" autocomplete="off" placeholder="Code">
+  <div class="error hidden" id="code-error">Code incorrect.</div>
+  <button onclick="checkCode()">Entrer</button>
+</div>
+
+<!-- ============ ÉCRAN FORMULAIRE ============ -->
+<div class="card hidden" id="screen-form">
+  <h1 id="titre"></h1>
+  <div id="message"></div>
+
+  <label for="date">Date</label>
+  <input type="date" id="date">
+
+  <label for="heure">Heure</label>
+  <input type="time" id="heure" value="19:30">
+
+  <label for="type">Type de lieu</label>
+  <select id="type">
+    <option value="Restauration">Restauration</option>
+    <option value="Hébergement">Hébergement</option>
+    <option value="Ludique">Ludique</option>
+    <option value="Autre">Autre</option>
+  </select>
+
+  <label for="lieu">Nom du lieu et adresse</label>
+  <input type="text" id="lieu" placeholder="Ex : Le Bistrot, 12 rue de la Paix, Paris">
+
+  <label for="note">Message (facultatif)</label>
+  <textarea id="note" placeholder="Si vous souhaitez ajouter quelque chose"></textarea>
+
+  <label for="elle-email">Votre email (facultatif, pour recevoir aussi la confirmation)</label>
+  <input type="email" id="elle-email" placeholder="vous@exemple.com">
+
+  <div class="error hidden" id="form-error"></div>
+  <button id="btn-send" onclick="submitForm()">Confirmer</button>
+</div>
+
+<!-- ============ ÉCRAN CONFIRMATION ============ -->
+<div class="card hidden" id="screen-done">
+  <h1>Confirmé</h1>
+  <p class="ok" id="done-status">Votre réponse a été envoyée.</p>
+  <div class="summary" id="done-summary"></div>
+  <a class="btn" id="btn-ics" href="#"><button type="button">Ajouter à mon calendrier</button></a>
+  <a class="btn" id="btn-gcal" href="#" target="_blank" rel="noopener"><button type="button" class="secondary">Ajouter à Google Agenda</button></a>
+  <p class="muted" style="margin-top:14px">Sur iPhone, « Ajouter à mon calendrier » ouvre directement l'app Calendrier.</p>
+</div>
+
+<script>
+// ---------- Init ----------
+document.getElementById('titre').textContent = CONFIG.titre;
+document.getElementById('message').innerHTML = CONFIG.message.map(function (m) { return '<p>' + esc(m) + '</p>'; }).join('');
+(function () {
+  var d = new Date(); d.setDate(d.getDate() + 1);
+  var min = d.toISOString().slice(0, 10);
+  var dateInput = document.getElementById('date');
+  dateInput.min = min; dateInput.value = min;
+})();
+document.getElementById('code-input').addEventListener('keydown', function (e) { if (e.key === 'Enter') checkCode(); });
+
+// Lien de rappel du calendrier (?ics=1&d=...&t=...&l=...) : utilisé dans l'email envoyé
+(function () {
+  var q = new URLSearchParams(location.search);
+  if (q.get('ics') === '1' && q.get('d') && q.get('t')) {
+    showDone(q.get('d'), q.get('t'), q.get('ty') || '', q.get('l') || '', q.get('n') || '');
+    document.getElementById('done-status').textContent = 'Rendez-vous';
+  }
+})();
+
+function esc(s) {
+  return String(s).replace(/[&<>"']/g, function (c) {
+    return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+  });
+}
+
+// ---------- Code ----------
+function checkCode() {
+  var v = document.getElementById('code-input').value.trim().toLowerCase();
+  if (v === CONFIG.code.toLowerCase()) {
+    document.getElementById('screen-code').classList.add('hidden');
+    document.getElementById('screen-form').classList.remove('hidden');
+  } else {
+    document.getElementById('code-error').classList.remove('hidden');
+  }
+}
+
+// ---------- Formulaire ----------
+function submitForm() {
+  var date = document.getElementById('date').value;
+  var heure = document.getElementById('heure').value;
+  var type = document.getElementById('type').value;
+  var lieu = document.getElementById('lieu').value.trim();
+  var note = document.getElementById('note').value.trim();
+  var elleEmail = document.getElementById('elle-email').value.trim();
+  var err = document.getElementById('form-error');
+  err.classList.add('hidden');
+
+  if (!date || !heure) { err.textContent = 'Merci de choisir une date et une heure.'; err.classList.remove('hidden'); return; }
+  if (!lieu) { err.textContent = 'Merci d\'indiquer un lieu ou une adresse.'; err.classList.remove('hidden'); return; }
+
+  var btn = document.getElementById('btn-send');
+  btn.disabled = true; btn.textContent = 'Envoi…';
+
+  var fd = formatDate(date, heure);
+  var link = location.origin + location.pathname + '?ics=1&d=' + date + '&t=' + heure
+    + '&ty=' + encodeURIComponent(type) + '&l=' + encodeURIComponent(lieu) + '&n=' + encodeURIComponent(note);
+
+  var body = {
+    _subject: CONFIG.elle + ' a choisi : ' + fd.date + ' à ' + fd.heure,
+    _captcha: 'false',
+    _template: 'box',
+    Date: fd.date,
+    Heure: fd.heure,
+    Type: type,
+    Lieu: lieu,
+    Message: note || '-',
+    'Ajouter au calendrier': link,
+    'Google Agenda': gcalLink(date, heure, lieu, note)
+  };
+  if (elleEmail) body._cc = elleEmail;
+
+  fetch('https://formsubmit.co/ajax/' + CONFIG.email, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+    body: JSON.stringify(body)
+  }).then(function (r) { return r.ok; }).catch(function () { return false; })
+    .then(function (ok) {
+      showDone(date, heure, type, lieu, note);
+      if (!ok) document.getElementById('done-status').textContent =
+        'L\'envoi automatique a échoué. Ajoutez le rendez-vous à votre calendrier ci-dessous, il sera partagé.';
+    });
+}
+
+function formatDate(date, heure) {
+  var d = new Date(date + 'T' + heure);
+  return {
+    date: d.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }),
+    heure: heure.replace(':', 'h')
+  };
+}
+
+// ---------- Confirmation ----------
+function showDone(date, heure, type, lieu, note) {
+  var fd = formatDate(date, heure);
+  document.getElementById('screen-code').classList.add('hidden');
+  document.getElementById('screen-form').classList.add('hidden');
+  document.getElementById('screen-done').classList.remove('hidden');
+  document.getElementById('done-summary').innerHTML =
+    '<strong>' + esc(fd.date) + '</strong> à ' + esc(fd.heure) + '<br>' +
+    (type ? esc(type) + ' - ' : '') + esc(lieu) +
+    (note ? '<br><span class="muted">' + esc(note) + '</span>' : '');
+
+  var ics = buildICS(date, heure, lieu, note);
+  var a = document.getElementById('btn-ics');
+  a.href = 'data:text/calendar;charset=utf-8,' + encodeURIComponent(ics);
+  a.download = 'rendez-vous.ics';
+  document.getElementById('btn-gcal').href = gcalLink(date, heure, lieu, note);
+}
+
+// ---------- Calendrier ----------
+function toUTC(date, heure, addHours) {
+  var d = new Date(date + 'T' + heure);
+  d.setHours(d.getHours() + (addHours || 0));
+  return d.toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '');
+}
+function icsEsc(s) {
+  return String(s).replace(/\\/g, '\\\\').replace(/;/g, '\\;').replace(/,/g, '\\,').replace(/\n/g, '\\n');
+}
+function buildICS(date, heure, lieu, note) {
+  return [
+    'BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//rdv//FR', 'CALSCALE:GREGORIAN', 'METHOD:PUBLISH',
+    'BEGIN:VEVENT',
+    'UID:' + date + heure.replace(':', '') + '@rdv',
+    'DTSTAMP:' + toUTC(date, heure, 0),
+    'DTSTART:' + toUTC(date, heure, 0),
+    'DTEND:' + toUTC(date, heure, CONFIG.dureeHeures),
+    'SUMMARY:' + icsEsc(CONFIG.titreEvenement + ' ' + CONFIG.lui + ' & ' + CONFIG.elle),
+    'LOCATION:' + icsEsc(lieu),
+    'DESCRIPTION:' + icsEsc(note || ''),
+    'BEGIN:VALARM', 'TRIGGER:-PT2H', 'ACTION:DISPLAY', 'DESCRIPTION:Rappel', 'END:VALARM',
+    'END:VEVENT', 'END:VCALENDAR'
+  ].join('\r\n');
+}
+function gcalLink(date, heure, lieu, note) {
+  return 'https://calendar.google.com/calendar/render?action=TEMPLATE'
+    + '&text=' + encodeURIComponent(CONFIG.titreEvenement + ' ' + CONFIG.lui + ' & ' + CONFIG.elle)
+    + '&dates=' + toUTC(date, heure, 0) + '/' + toUTC(date, heure, CONFIG.dureeHeures)
+    + '&location=' + encodeURIComponent(lieu)
+    + '&details=' + encodeURIComponent(note || '');
+}
+</script>
+</body>
+</html>
